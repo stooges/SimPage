@@ -40,7 +40,7 @@ A very simple JS paging tool based on Mybatis plugin of PageHelper (基于Mybati
     
 （6）重要函数
 
-    sp.createPage(pageNum)      //** 创建页面，参数为页码
-    sp.refresh(pageNum, data)   //** 刷新页面，使用场景：页面删除、修改或添加一条记录后刷新页面
+    sp.createPage(pageNum);     //** 创建页面，参数为页码
+    sp.refresh(pageNum, data);  //** 刷新页面，使用场景：页面删除、修改或添加一条记录后刷新页面
                                 //   pageNum为要显示的页面，默认为当前页面, data为ajax的访问数据, 含意同（5）中的 data
                                 //   该函数的两个参数在页面面要变动时使用，例：删除记录、输入检索条件进行搜索 
