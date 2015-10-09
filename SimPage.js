@@ -1,186 +1,328 @@
 /**
- * @Author: liuchen 
+ * @author LiuChen
  * 
- * -----------------------------------------        使用说明 （1）-（6）      -------------------------------------------
+ * 前端输入检验
  * 
- * 	（1）后端使用mybatis的pagehelper插件；
- *	（2）后端使用 pagehelper 的 PageHelper.startPage(pageNum, pageSize) 方法；
- *	（3）服务器返回 paehelper的PageInfo的JSON对象；
- *  	（4）CSS样式设置同 bootstrap 分页组件的样式设置一致；
- *	（5）例:
-        <!-- JS代码 -->
-        var sp=$("#pagePanel").SimPage({
-	       url: '/ajax/route/route_routePage',  //*2* ajax访问的『url』 
-	       requestNameOfPageNum:'pageNum',      //*3* 『request中的参数名』, 默认为'pageNum', 
-                                                //	  用于从request中获取PageHelper.startPage(pageNum, pageSize)的参数pageNum 
-	       requestNameOfPageSize:'pageSize',    //*4* 『request中的参数名』, 默认为'pageSize', 
-                                                //	  用于从request中获取PageHelper.startPage(pageNum, pageSize)的参数pageSize 
-               pageSize:10,                         //*5* 『页面大小』，默认值10
-               data:{ },                            //*6* ajax访问的『其他参数』
-               method:'post',                       //*7* 『请求方法』，默认为 post, 如果为 get 则上述参数也可放在url中 
-               length:10,                           //*8* 页码面板中显示的『页码数量』，默认值10
-               onPageChange:function(page){         //*9* 『回调函数』，页面切换时返回的页面数据
-                   alert(page['pageNum']);
-                   alert(page['pageSize']);
-                   alert(page['size']);
-                   alert(page['startRow']);
-                   alert(page['endRow']);
-                   alert(page['total']);
-                   alert(page['pages']);
-                   alert(page['list']); //数据列表
-               }
-        });
-        <!-- HTML代码 -->
-        <div id="pagePanel"></div> //存放页码面板的『容器id』 
- * （6）重要函数
-       sp.refresh(pageNum, data)  //** 刷新页面，使用场景：页面删除、修改或添加一条记录后刷新页面
-                                       //   pageNum为要显示的页面，默认为当前页面, data为ajax的访问数据, 含意同（5）中的 data
-                                       //   该函数的两个参数在页面面要变动时使用，例：删除记录、输入检索条件进行搜索 
- * -----------------------------------------------------------------------------------------------------------------------
- **/
+ * 一、说明
+ * 1. 功能
+ * （1）校验一组html控件内容的合法性，该组控件可以属于一个form也可以在<div>或其他html元素中；
+ * （2）支持自动校验与手动校验；
+ * （3）自动校验支持动态事件绑定；
+ * （4）支持手机端控件；
+ * （5）支持对控件组校验（例如，一组checkbox或ratiobox）;
+ * （6）支持用户自定义校验器。
+ * 2. html属性
+ * （1）test-id：被校验控件或控件组的校验id；
+ * （2）message-for：校验信息隶属于哪个被校验控件，基值为被校验控件的test-id；
+ * （3）test-type：校验信息的类型，与message-for同时使用；
+ * （4）test-point：待校验控件组中的校验点，即组中的单个控件；
+ * （5）required, groupRequired, number, max, min, minlength, email, idcard, mobile，eaualTo以及自定义校验器的名字，用于标识待校验控件的校验类型；
+ * 3. 使用方法
+ * （1）html代码
+ * 		<div id="inputs_elements">
+ * 			<div>
+ * 				<input type="text" test-id="element1" required/>
+ * 				<span message-for="element1">不能为空</span>
+ * 			</div>
+ * 			<div>
+ * 				<input type="text" test-id="element2" required number max="100" min="50"/>  
+ * 				<!--非空的大于等50小于等于100的数字-->
+ * 				<span message-for="element2" test-type="required">不能为空</span>
+ * 				<span message-for="element2" test-type="number">必须输入数字</span>
+ * 				<span message-for="element2" test-type="max">最大值为100</span>
+ * 				<span message-for="element2" test-type="min">最小值为50</span>
+ * 			</div>
+ * 			<div>
+ * 				<div test-id="group1" groupRequired>  <!--一组checkbox必须选择至少一个-->
+ * 					<input type="checkbox" test-point>
+ * 					<input type="checkbox" test-point>
+ * 					<input type="checkbox" test-point>
+ * 				</div>
+ * 				<span message-for="group1" test-type="groupRequired">必须选择至少一个</span>
+ * 			</div>
+ * 		</div>
+ * （2）JS代码
+ * 		a.创建校验对象
+ * 			var validate1 = $("#inputs_elements").SimValidate({  //**** 该函数参数可选
+ *							autoTest:true,	//是否自动校验(onblur事件)，默认为true
+ *							shortTest:true,	//是否短路校验，默认为true
+ * 							messageStyle:"color:red;padding-left:3px;padding-right:3px",//显示消息的样式，些处为默认值
+ * 						});
+ * 		b. 自定义校验器
+ * 			注意：校验器名必须为合法js标识符（不能包括中划线）
+ * 			validate1.extend({
+ * 				validator_name : function(value, param, $element){ 
+ * 					//value: 待校验对象的输入值;
+ * 					//param: 校验类型的取值（如 max="20" 中的值 20）;
+ * 					//$element 待校验对象的Jquery对象.
+ * 					...
+ * 					return true; // or false
+ * 				}
+ * 			})
+ * 		c. 手动校验
+ * 			var result = validate1.validate(); 当所有元素检验都通过时，返回true，否则返回false
+ */
 
 ;(function($, window, document, undefined){
-	$.fn.SimPage=function(options){
-		if(!options["url"]){
-			alert("A ajax url is needed!");
+	/**
+	 * 返回校验对象
+ 	 * @param {Object} options
+	 */
+	$.fn.SimValidate=function(options){
+		var simVali=new SimValidate(this,options);
+		return simVali;
+	};
+	
+	/**
+	 * 构造函数
+ 	 * @param {Object} eles 被选择元素
+ 	 * @param {Object} options 设置
+	 */
+	var SimValidate = function(eles, options){
+		if(eles==null || eles == undefined){
+			alert("Element to be validated is undefined!");
 			return;
 		}
-		return new SimPage(this,options);
-	};
-	
-	var SimPage=function($container,options){
-		this.$container = $container;
-		this.settings={//默认值
-	       requestNameOfPageNum:'pageNum', 
-	       requestNameOfPageSize:'pageSize', 
-	       pageSize:10,
-	       data:{ },
-	       method:'post',
-	       length:10,
-	       onPageChange:function(page){}
+		this.$eles=eles;
+		this.eles_path=this.getPath(eles);
+		//默认值
+		this.defaults= {
+			messageStyle:"color:red;padding-left:3px;padding-right:3px",
+			shortTest:true,	//短路校验
+			autoTest:true,	//自动校验(onblur校验)
 		};
-		$.extend(this.settings,options);
-		
-		this.startPage=1;
-		this.endPage=this.settings['length'];
-		//this.createPage(1);
-		this.currentPage=1;
-	};
-	
-	SimPage.prototype = {
-		/**
-		 * 根据url及参数，ajax访问，创建页面
-		 */
-		createPage : function(pageNum){
-			var params= $.extend({},this.settings["data"]);
-			params[this.settings['requestNameOfPageNum']]=pageNum;
-			params[this.settings['requestNameOfPageSize']]=this.settings['pageSize'];
-		
-			var sp=this;
-			$.ajax({
-				url:this.settings['url'],
-				type:this.settings['method'],
-				data: params,
-				dataType:"json",
-				success:function (pageInfo){
-					sp.createPanel(pageInfo);
-					var userfunc=sp.settings['onPageChange'];
-					userfunc(pageInfo);
-				},
-				error:function(request,message,error){
-					alert("Server errors happend:"+message);
-				}
-			});
-		},
-		/**
-		 * 创建页码面板,绑定事件
-		 */
-		createPanel : function(pageInfo){
-			var totalPage=pageInfo['pages'];
-			var currentPage=pageInfo['pageNum'];
-			this.currentPage=currentPage;
-			var length=this.settings['length'];
-			
-			/**调整页码显示*/
-			if(pageInfo['pages']==0 || pageInfo['pages']==null){
-				this.endPage=0;
-			}else{
-				if(currentPage==1){
-					this.startPage=1;
-					this.endPage=length<pageInfo['pages']?length:pageInfo['pages'];
-				}
-				if(currentPage==pageInfo['pages']){
-					this.startPage=pageInfo['pages']-length+1;
-					this.endPage=pageInfo['pages'];
-				}
-			}
-			if(currentPage==this.startPage){
-				this.startPage = currentPage-parseInt(length/2);
-				if(this.startPage<=1)
-					this.startPage=1;
-				this.endPage=this.startPage+length-1;
-				if (this.endPage>=pageInfo['pages'])
-					this.endPage=pageInfo['pages'];
-			}else if(this.endPage==currentPage){
-				this.endPage = currentPage+parseInt(length/2);
-				if(this.endPage>=pageInfo['pages'])
-					this.endPage=pageInfo['pages'];
-				this.startPage=this.endPage-length+1;
-				if(this.startPage<=1)
-					this.startPage=1;
-			}
-			
-			/**创建页码面板*/
-			var html="<nav> <ul class='pagination'> <li> <a href='javascript:;' aria-label='First'> <span aria-hidden='true'>首页</span> </a> </li> <li> <a href='javascript:;' aria-label='Previous'> <span aria-hidden='true'>上页</span> </a> </li>";
-			for(var i=this.startPage;i<=this.endPage;i++){
-				if(currentPage==i){
-		            html+="<li class='active'> <span>"+i+"<span class='sr-only'>(current)</span></span> </li>";
-				}else{
-					html+="<li><a href='javascript:;' page='"+i+"'>"+i+"</a></li>";
-				}
-			}
-			html+="<li> <a href='javascript:;' aria-label='Next'> <span aria-hidden='true'>下页</span> </a> </li> <li> <a href='javascript:;' aria-label='Last'> <span aria-hidden='true'>尾页</span> </a> </li> </ul> </nav>";
-			this.$container.html(html);
-			
-			sp=this;
-			//绑定页码点击事件
-			this.$container.find("[page]").click(function(){
-				sp.createPage($(this).attr('page'));
-			});
-			//绑定首页点击事件
-			this.$container.find("a[aria-label='First']").click(function(){
-				sp.createPage(1);
-			});
-			//绑定上页点击事件
-			this.$container.find("a[aria-label='Previous']").click(function(){
-				if(currentPage>1){
-					sp.createPage(currentPage-1);
-				}
-			});
-			//绑定下页点击事件
-			this.$container.find("a[aria-label='Next']").click(function(){
-				if(currentPage<totalPage){
-					sp.createPage(currentPage+1);
-				}
-			});
-			//绑定尾页点击事件
-			this.$container.find("a[aria-label='Last']").click(function(){
-				sp.createPage(totalPage);
-			});
-		},
-		
-		/**
-		 * 刷新页面
-		 * @pageNum: 要显示的页面，默认为当前页面
-		 * @data: ajax访问的其他条件，默认为null，该参数在动态添加检索条件时用，例：页面有过滤功能时
-		 * */
-		refresh : function(pageNum, data){
-			if(data!=null)
-				this.settings['data']=data;
-			if(pageNum==null)
-				this.createPage(this.currentPage);
-			else
-				this.createPage(pageNum);
+		this.settings= $.extend({},this.defaults, options);
+		this.validators=default_validators;
+		eles.find("[message-for]").attr("hidden",true);//隐藏所有消息
+		eles.find("[message-for]").attr("style",this.settings["messageStyle"]);
+		if(this.settings['autoTest']){
+			this.autoValidate();
 		}
 	};
-})($,window,document);
+
+	SimValidate.prototype={
+		/**
+		 * 自动校验
+		 */
+		autoValidate: function(){
+			var validators = this.validators;
+			var $eles = this.$eles;
+			var eles_path = this.eles_path;
+			var settings=this.settings;
+			var simValidate = this;
+			
+			//校验每个待校验元素
+			$eles.find("[test-id]").each(function(index){
+				var test_id=$(this).attr("test-id");
+				var $element = $(this);
+
+				if($element.find("[test-point]").size()==0){
+					$(eles_path).on("focus","[test-id='"+test_id+"']",function(){
+						$eles.find("[message-for='"+test_id+"']").attr("hidden",true);
+					});
+					$(eles_path).on("blur","[test-id='"+test_id+"']",function(){
+						simValidate.testElement($element);
+					});
+					
+				}else{ // 如果是 group test
+						$(eles_path).on("focus","[test-id='"+test_id+"']>[test-point]",function(){
+							$eles.find("[message-for='"+test_id+"']").attr("hidden",true);
+						});
+						$(eles_path).on("blur","[test-id='"+test_id+"']>[test-point]",function(){
+							$eles.find("[message-for='"+test_id+"']").attr("hidden",true);
+							simValidate.testElement($element);
+						});
+						$(eles_path).on("click","[test-id='"+test_id+"']>[test-point]",function(){
+							$eles.find("[message-for='"+test_id+"']").attr("hidden",true);
+							simValidate.testElement($element);
+						});
+				}
+			});
+			
+		},
+		
+		/**
+		 * 手动校验
+		 */
+		validate: function(){
+			this.$eles.find("[message-for]").attr("hidden",true);//隐藏所有消息
+			var total_valid = true;
+			var simValidate = this;
+			//校验每个待校验元素
+			this.$eles.find("[test-id]").each(function(index){
+				total_valid &= simValidate.testElement($(this));
+			});
+			
+			return total_valid;
+		},
+		
+		/**
+		 * 校验每一个待校验元素
+		 */
+		testElement: function($point){
+			var validators = this.validators;
+			var $eles = this.$eles;
+			var settings=this.settings;
+
+			var single_valid=true;
+			for(var key in validators){//每个校验器
+				if(settings["shortTest"] && !single_valid) break;//如果短路校验
+				
+				var param = $point.attr(key);
+				if(param==null) continue;//如果不需当前校验器
+				
+				var validator=validators[key];
+				var value = $point.val();
+				if(!validator(value,param,$point)){//注入校验器参数：value 值，param 校验参数，$point待校验对象的jquery对象
+					var test_id=$point.attr("test-id");
+					if($eles.find("[message-for='"+test_id+"']").size() > 1)
+						$eles.find("[message-for='"+test_id+"'][test-type='"+key+"']").attr("hidden",false);
+					else
+						$eles.find("[message-for='"+test_id+"']").attr("hidden",false);
+					single_valid = false;
+				}
+			}
+			return single_valid;
+		},
+		/**
+		 * 用户添加自定义验证器
+		 */
+		extend: function(validators){
+			$.extend(this.validators, validators);
+		},
+		
+		getPath: function ($element) {
+    		if($element.length != 1)
+				throw 'Requires one element.';
+
+			var path,node = $element;
+			while (node.length) {
+				var realNode = node[0], name = realNode.localName;
+				if (!name)
+					break;
+				name = name.toLowerCase();
+
+				var parent = node.parent();
+
+				var siblings = parent.children(name);
+				if (siblings.length > 1) {
+					name += ':eq(' + siblings.index(realNode) + ')';
+				}
+
+				path = name + ( path ? '>' + path : '');
+				node = parent;
+			}
+
+			return path;
+		}
+
+	};
+	
+	/**
+	 * 内置验证器
+	 */
+	var default_validators = {
+
+		equalTo: function(value,param,point){//值是否相等
+			if(point.siblings("[test-id='"+param+"']").val()==value)
+				return true;
+			else
+				return false;
+
+		},
+		required: function(value){//非空
+			if(value==null || value.length==0)
+				return false;
+			else
+				return true;
+		}, 
+		number: function(value){//数字
+			if(value==null || value.length==0) return true;
+			if(value.length > 0 && $.trim(value).length==0) return false;
+			return !isNaN(value);
+		}, 
+		groupRequired:function(value, param, group){
+			var valid = false;
+			group.find("[test-point]").each(function(){
+				if($(this).is(':checked'))
+					valid=true;
+			});
+			return valid;
+		},
+		max: function(value,num){//最大值
+			if(value==null || value.length==0) return true;
+			if(parseFloat(value)>parseFloat(num))
+				return false;
+			else
+				return true;
+		}, 
+		min: function(value,num){//最小值
+			if(value==null || value.length==0) return true;
+			if(parseFloat(value)<parseFloat(num))
+				return false;
+			else
+				return true;
+		}, 
+		minlength:function(value,num){
+			if(value==null || value.length==0) return true;
+			if(value.length<parseFloat(num))
+				return false;
+			else
+				return true;
+		},
+		email: function(value){//email
+			if(value==null || value.length==0) return true;
+			var reg = /^([a-zA-Z0-9]+[_|\_|\.]?)*[a-zA-Z0-9]+@([a-zA-Z0-9]+[_|\_|\.]?)*[a-zA-Z0-9]+\.[a-zA-Z]{2,3}$/;
+			if (reg.test(value)) {
+				return true;
+			} else {
+				return false;
+			}
+		}, 
+		mobile:function(value){//手机号码
+			if(value==null || value.length==0) return true;
+			var isMob=/^((\+?86)|(\(\+86\)))?(13[012356789][0-9]{8}|15[012356789][0-9]{8}|17[012356789][0-9]{8}|18[02356789][0-9]{8}|147[0-9]{8}|1349[0-9]{7})$/;
+		    if(isMob.test(value)){
+		        return true;
+		    }
+		    else{
+		        return false;
+		    }
+		}, 
+		idcard:function(idCard) {//身份证号
+			if(idCard==null || idCard.length==0) return true;
+			//15位和18位身份证号码的正则表达式
+			var regIdCard=/^(^[1-9]\d{7}((0\d)|(1[0-2]))(([0|1|2]\d)|3[0-1])\d{3}$)|(^[1-9]\d{5}[1-9]\d{3}((0\d)|(1[0-2]))(([0|1|2]\d)|3[0-1])((\d{4})|\d{3}[Xx])$)$/;
+			if(regIdCard.test(idCard)){
+				if(idCard.length==18){
+					var idCardWi=new Array( 7, 9, 10, 5, 8, 4, 2, 1, 6, 3, 7, 9, 10, 5, 8, 4, 2 ); //将前17位加权因子保存在数组里
+					var idCardY=new Array( 1, 0, 10, 9, 8, 7, 6, 5, 4, 3, 2 ); //这是除以11后，可能产生的11位余数、验证码，也保存成数组
+					var idCardWiSum=0; //用来保存前17位各自乖以加权因子后的总和
+					for(var i=0;i<17;i++){
+						idCardWiSum+=idCard.substring(i,i+1)*idCardWi[i];
+					}
+					var idCardMod=idCardWiSum%11;//计算出校验码所在数组的位置
+					var idCardLast=idCard.substring(17);//得到最后一位身份证号码
+					//如果等于2，则说明校验码是10，身份证号码最后一位应该是X
+					if(idCardMod==2){
+						if(idCardLast=="X"||idCardLast=="x"){
+							return true;
+						}else{
+							return false;
+						}
+					}else{
+						//用计算出的验证码与最后一位身份证号码匹配，如果一致，说明通过，否则是无效的身份证号码
+						if(idCardLast==idCardY[idCardMod]){
+							return true;
+						}else{
+							return false;
+						}
+					}
+				}
+			}else{
+				return false;
+			}
+		}
+	};
+	
+})(jQuery, window, document);
