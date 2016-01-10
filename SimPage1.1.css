@@ -1,0 +1,81 @@
+/**分页*/
+.box-pager {
+	min-width: 800px;
+    max-width: 1000px;
+	width: 100%;
+    margin: 0 auto 0 auto;
+    border: solid #ddd;
+    border-width: 0 1px 1px;
+    padding: 10px 0 12px 0;
+    border-radius: 3px;
+    text-align: center;
+    margin-bottom: 10px;
+}
+.box-pagination{
+    display: inline;
+}
+.pagination {
+    display: inline-block;
+    padding-left: 0;
+    margin: 0;
+    border-radius: 4px;
+}
+.pagination>li {
+    display: inline;
+}
+.pagination>li:first-child>a, .pagination>li:first-child>span {
+    margin-left: 0;
+    border-bottom-left-radius: 4px;
+    border-top-left-radius: 4px;
+}
+.pagination>.disabled>a, 
+.pagination>.disabled>a:focus, 
+.pagination>.disabled>a:hover, 
+.pagination>.disabled>span, 
+.pagination>.disabled>span:focus, 
+.pagination>.disabled>span:hover {
+    color: #777;
+    background-color: #eee;
+    cursor: not-allowed;
+}
+.pagination>li>a, .pagination>li>span {
+    position: relative;
+    float: left;
+    padding: 6px 12px;
+    line-height: 1.42857;
+    text-decoration: none;
+    border: 1px solid #FFF;
+    margin-left: -1px;
+    background: #EEE;
+    -webkit-transition: color 400ms,background 400ms;
+    transition: color 400ms,background 400ms;
+}
+.pagination>.active>a, 
+.pagination>.active>a:focus, 
+.pagination>.active>a:hover, 
+.pagination>.active>span, 
+.pagination>.active>span:focus, 
+.pagination>.active>span:hover {
+    z-index: 2;
+    color: #FFF;
+    background-color: #6095C1;
+    cursor: default;
+}
+.pagination-info {
+    position: relative;
+    float: left;
+    padding: 6px 12px;
+    line-height: 1.42857;
+    background-color: #eee;
+    border: 1px solid #fff;
+    margin-left: -1px;
+}
+.pagination-select {
+    border: none;
+    outline: 0;
+    padding: 0;
+    border-radius: 5px;
+    background-color: #E9E9E9;
+    margin: 0 2px;
+    cursor: pointer;
+}
